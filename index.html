@@ -117,7 +117,7 @@ const STORE="emb_calc_2026_v4";
 const NIGHT=[[0,390],[1320,1830]];
 const MN=["enero","febrero","marzo","abril","mayo","junio","julio","agosto","septiembre","octubre","noviembre","diciembre"];
 const TIPOL={Lab:"Laborable",Sab:"Sábado",Fest:"Festivo"};
-const APP_VER="4.5";
+const APP_VER="4.6";
 let state=load(),tab="calendario",period=currentPeriod();
 
 /* ===== Calendario de turnos (fusion) ===== */
@@ -356,7 +356,7 @@ const GD_ORIGINS=["https://calendario-sabanilla.github.io"];   /* unico origen a
 function gdAvail(){return !!GD_CLIENT_ID&&GD_ORIGINS.indexOf(location.origin)>=0;}
 const GD_SCOPE="https://www.googleapis.com/auth/drive.appdata";
 const GD_API="https://www.googleapis.com/drive/v3",GD_UP="https://www.googleapis.com/upload/drive/v3";
-const gd={tok:null,exp:0,email:localStorage.getItem("emb_gd_mail")||"",busy:false,err:"",last:+localStorage.getItem("emb_gd_last")||0};
+const gd={ui:false,tok:null,exp:0,email:localStorage.getItem("emb_gd_mail")||"",busy:false,err:"",last:+localStorage.getItem("emb_gd_last")||0};
 function gdOn(){return gdAvail()&&localStorage.getItem("emb_gd_on")==="1";}
 function gdLib(){return new Promise((res,rej)=>{if(window.google&&google.accounts&&google.accounts.oauth2)return res();const s=document.createElement("script");s.src="https://accounts.google.com/gsi/client";s.async=true;s.onload=()=>res();s.onerror=()=>rej(new Error("Sin conexi\u00f3n con Google"));document.head.appendChild(s);});}
 function gdToken(interactive){return new Promise(async(res,rej)=>{
@@ -428,12 +428,15 @@ function fillGd(){const el=document.getElementById("gd_card");if(!el)return;
   if(!gdAvail()){el.innerHTML=`<div class="card"><div style="font-weight:800;font-size:14px">Copia en Google Drive</div><div class="hint" style="margin:4px 0 8px">Solo funciona en la <b>direcci\u00f3n nueva</b> de la app. Est\u00e1s en una antigua. Exporta tu copia aqu\u00ed, abre la nueva e imp\u00f3rtala all\u00ed.</div><div class="actions" style="margin-top:0"><a class="btn primary" href="https://calendario-sabanilla.github.io/" style="text-decoration:none;text-align:center">Abrir la direcci\u00f3n nueva</a></div></div>`;return;}
   if(!gdOn()){el.innerHTML=`<div class="card"><div style="font-weight:800;font-size:14px">Copia en Google Drive</div><div class="hint" style="margin:4px 0 8px">Tus datos se guardan solos en una carpeta <b>privada de tu propio Drive</b>. Nadie m\u00e1s puede verlos. Si pierdes o cambias de m\u00f3vil, los recuperas.</div>${gd.err?`<div class="hint" style="color:var(--emb);font-weight:700;margin:0 0 6px">${gd.err}</div>`:""}<div class="actions" style="margin-top:0"><button class="btn primary" id="gd_con">Conectar con Google</button></div></div>`;
     const c=document.getElementById("gd_con");if(c)c.onclick=gdConnect;return;}
-  const age=gd.last?Math.floor((Date.now()-gd.last)/60000):null;const ok=!gd.err&&age!==null;
+  const age=gd.last?Math.floor((Date.now()-gd.last)/60000):null;const ok=!gd.err&&age!==null;const sav=gd.ui||gd.busy;
   const when=age===null?"a\u00fan no":(age<1?"ahora mismo":(age<60?"hace "+age+" min":(age<1440?"hace "+Math.floor(age/60)+" h":"hace "+Math.floor(age/1440)+" d")));
-  el.innerHTML=`<div class="card" style="background:${gd.err?"var(--emb-soft)":"var(--dieta-soft)"};border-color:${gd.err?"#EFCACA":"#BFD8B6"}"><div style="font-weight:800;font-size:14px;color:${gd.err?"var(--emb)":"var(--dieta)"}">${gd.err?"Drive: "+gd.err:"Copia en Drive activa"}</div>`+
-   `<div class="hint" style="margin:4px 0 8px">${gd.email?gd.email+" &middot; ":""}\u00daltima copia: <b>${when}</b></div>`+
-   `<div class="actions" style="margin-top:0;flex-wrap:wrap"><button class="btn primary" id="gd_now">${gd.err?"Reconectar":"Guardar ahora"}</button><button class="btn ghost" id="gd_res">Restaurar desde Drive</button><button class="btn ghost" id="gd_off">Desconectar</button></div></div>`;
-  document.getElementById("gd_now").onclick=async()=>{if(gd.err){try{await gdToken(true);gd.err="";}catch(e){gd.err=e.message;fillGd();return;}}await gdSync();fillGd();};
+  el.innerHTML=`<div class="card" style="background:${gd.err?"var(--emb-soft)":"var(--dieta-soft)"};border-color:${gd.err?"#EFCACA":"#BFD8B6"}"><div style="font-weight:800;font-size:14px;color:${gd.err?"var(--emb)":"var(--dieta)"}">${gd.err?"Drive: "+gd.err:(sav?"Guardando en Drive\u2026":"Copia en Drive activa")}</div>`+
+   `<div class="hint" style="margin:4px 0 8px">${gd.email?gd.email+" &middot; ":""}\u00daltima copia: <b>${when}</b>${gd.last?" ("+new Date(gd.last).toLocaleTimeString("es-ES",{hour:"2-digit",minute:"2-digit"})+")":""}</div>`+
+   `<div class="actions" style="margin-top:0;flex-wrap:wrap"><button class="btn primary" id="gd_now" ${sav?"disabled":""} style="${sav?"opacity:.6":""}">${sav?"Guardando\u2026":(gd.err?"Reconectar":"Guardar ahora")}</button><button class="btn ghost" id="gd_res">Restaurar desde Drive</button><button class="btn ghost" id="gd_off">Desconectar</button></div></div>`;
+  document.getElementById("gd_now").onclick=async()=>{if(gd.ui||gd.busy)return;const before=gd.last;gd.ui=true;fillGd();
+    if(gd.err){try{await gdToken(true);gd.err="";}catch(e){gd.err=e.message;gd.ui=false;fillGd();try{toast("No se pudo reconectar");}catch(x){}return;}}
+    await gdSync();gd.ui=false;fillGd();
+    try{if(gd.err)toast("No se pudo guardar: "+gd.err);else if(gd.last>(before||0))toast("\u2713 Copia guardada en Drive \u00b7 "+new Date(gd.last).toLocaleTimeString("es-ES",{hour:"2-digit",minute:"2-digit"}));}catch(x){}};
   document.getElementById("gd_res").onclick=gdRestoreUI;document.getElementById("gd_off").onclick=gdDisconnect;}
 async function checkIntegrity(){try{
   if(!state.registro.length&&!Object.keys(state.serv||{}).length)return;if(document.getElementById("mdlx"))return;
