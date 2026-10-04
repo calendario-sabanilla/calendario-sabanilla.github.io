@@ -117,7 +117,7 @@ const STORE="emb_calc_2026_v4";
 const NIGHT=[[0,390],[1320,1830]];
 const MN=["enero","febrero","marzo","abril","mayo","junio","julio","agosto","septiembre","octubre","noviembre","diciembre"];
 const TIPOL={Lab:"Laborable",Sab:"Sábado",Fest:"Festivo"};
-const APP_VER="4.6";
+const APP_VER="4.7";
 let state=load(),tab="calendario",period=currentPeriod();
 
 /* ===== Calendario de turnos (fusion) ===== */
@@ -356,18 +356,21 @@ const GD_ORIGINS=["https://calendario-sabanilla.github.io"];   /* unico origen a
 function gdAvail(){return !!GD_CLIENT_ID&&GD_ORIGINS.indexOf(location.origin)>=0;}
 const GD_SCOPE="https://www.googleapis.com/auth/drive.appdata";
 const GD_API="https://www.googleapis.com/drive/v3",GD_UP="https://www.googleapis.com/upload/drive/v3";
-const gd={ui:false,tok:null,exp:0,email:localStorage.getItem("emb_gd_mail")||"",busy:false,err:"",last:+localStorage.getItem("emb_gd_last")||0};
+const gd={need:false,dirty:false,ui:false,tok:null,exp:0,email:localStorage.getItem("emb_gd_mail")||"",busy:false,err:"",last:+localStorage.getItem("emb_gd_last")||0};
+try{const _s=JSON.parse(localStorage.getItem("emb_gd_tok"));if(_s&&_s.t&&_s.e>Date.now()+60000){gd.tok=_s.t;gd.exp=_s.e;}}catch(e){}
+function gdTokOk(){return !!(gd.tok&&Date.now()<gd.exp-60000);}
 function gdOn(){return gdAvail()&&localStorage.getItem("emb_gd_on")==="1";}
 function gdLib(){return new Promise((res,rej)=>{if(window.google&&google.accounts&&google.accounts.oauth2)return res();const s=document.createElement("script");s.src="https://accounts.google.com/gsi/client";s.async=true;s.onload=()=>res();s.onerror=()=>rej(new Error("Sin conexi\u00f3n con Google"));document.head.appendChild(s);});}
 function gdToken(interactive){return new Promise(async(res,rej)=>{
   if(gd.tok&&Date.now()<gd.exp-60000)return res(gd.tok);
   try{await gdLib();}catch(e){return rej(e);}
   const tc=google.accounts.oauth2.initTokenClient({client_id:GD_CLIENT_ID,scope:GD_SCOPE,
-    callback:r=>{if(r&&r.access_token){gd.tok=r.access_token;gd.exp=Date.now()+(+r.expires_in||3600)*1000;res(gd.tok);}else rej(new Error("Reconecta con Google"));},
+    hint:gd.email||undefined,
+    callback:r=>{if(r&&r.access_token){gd.tok=r.access_token;gd.exp=Date.now()+(+r.expires_in||3600)*1000;gd.need=false;try{localStorage.setItem("emb_gd_tok",JSON.stringify({t:gd.tok,e:gd.exp}));}catch(e){}res(gd.tok);if(gd.dirty&&gdOn())setTimeout(()=>{gdPush();},0);}else rej(new Error("Reconecta con Google"));},
     error_callback:e=>rej(new Error("Reconecta con Google"))});
-  try{tc.requestAccessToken({prompt:interactive?"":"none"});}catch(e){rej(e);}});}
+  try{tc.requestAccessToken({prompt:interactive?"":"none",hint:gd.email||undefined});}catch(e){rej(e);}});}
 async function gdFetch(url,opt){const tok=await gdToken(false);opt=opt||{};opt.headers=Object.assign({Authorization:"Bearer "+tok},opt.headers||{});
-  const r=await fetch(url,opt);if(r.status===401){gd.tok=null;throw new Error("Reconecta con Google");}if(!r.ok)throw new Error("Drive "+r.status);return r;}
+  const r=await fetch(url,opt);if(r.status===401){gd.tok=null;try{localStorage.removeItem("emb_gd_tok");}catch(e){}throw new Error("Reconecta con Google");}if(!r.ok)throw new Error("Drive "+r.status);return r;}
 async function gdList(){const r=await gdFetch(GD_API+"/files?spaces=appDataFolder&pageSize=100&fields="+encodeURIComponent("files(id,name,modifiedTime,size)")+"&orderBy="+encodeURIComponent("modifiedTime desc"));return (await r.json()).files||[];}
 async function gdGet(id){return (await gdFetch(GD_API+"/files/"+id+"?alt=media")).json();}
 async function gdDelete(id){await gdFetch(GD_API+"/files/"+id,{method:"DELETE"});}
@@ -388,8 +391,8 @@ async function gdPush(force){
     const dn="turnoscalc-"+new Date().toISOString().slice(0,10)+".json";const dl=files.find(f=>f.name===dn);await gdUpload(dn,pl,dl&&dl.id);
     const names=new Set(files.filter(f=>/^turnoscalc-\d{4}-\d{2}-\d{2}\.json$/.test(f.name)).map(f=>f.name));names.add(dn);
     const old=[...names].sort().reverse().slice(14);for(const nm of old){const f=files.find(x=>x.name===nm);if(f)await gdDelete(f.id);}
-    gd.last=Date.now();try{localStorage.setItem("emb_gd_last",String(gd.last));}catch(e){}
-  }catch(e){gd.err=e.message||"Error";}
+    gd.last=Date.now();gd.dirty=false;gd.need=false;try{localStorage.setItem("emb_gd_last",String(gd.last));}catch(e){}
+  }catch(e){if(/Reconecta/.test(e.message||"")){gd.need=true;gd.err="";}else gd.err=e.message||"Error";}
   gd.busy=false;fillGd();}
 function gdFmt(ts){const d=new Date(ts);return d.toLocaleDateString("es-ES")+" "+d.toLocaleTimeString("es-ES",{hour:"2-digit",minute:"2-digit"});}
 function gdConflict(rem,m){const parts=[];if(m.d)parts.push(m.d+" d\u00eda"+(m.d===1?"":"s"));if(m.s)parts.push(m.s+" servicio"+(m.s===1?"":"s"));if(m.j)parts.push(m.j+" jornada"+(m.j===1?"":"s"));
@@ -406,9 +409,9 @@ async function gdSync(){if(!gdOn()||gd.busy)return;
         document.getElementById("gs_si").onclick=()=>{const sp=gdSplit(rem.data);applySnap({state:sp.state,esp:sp.esp,cfg:sp.cfg});cerrarModal();gd.last=Date.now();fillGd();};return;}}
       try{toast("No hay ninguna copia en tu Drive");}catch(x){}
       return;}
-  }catch(e){gd.err=e.message||"Error";fillGd();return;}
+  }catch(e){if(/Reconecta/.test(e.message||"")){gd.need=true;gd.err="";}else gd.err=e.message||"Error";fillGd();return;}
   await gdPush();}
-let _gdT=null;function gdSoon(){if(!gdOn())return;clearTimeout(_gdT);_gdT=setTimeout(()=>{if(gd.tok&&Date.now()<gd.exp-60000)gdPush();},20000);}
+let _gdT=null;function gdSoon(){if(!gdOn())return;gd.dirty=true;clearTimeout(_gdT);_gdT=setTimeout(()=>{if(gdTokOk())gdPush();else{gd.need=true;fillGd();}},20000);}
 async function gdRestoreUI(){try{const files=(await gdList()).filter(f=>/^turnoscalc-(latest|prev|\d{4}-\d{2}-\d{2})\.json$/.test(f.name));
   if(!files.length){modal(`<h2 style="margin:4px 0 6px;font-size:17px">Copias en Drive</h2><p class="hint">Todav\u00eda no hay copias.</p><div class="actions"><button class="btn ghost" id="gr_x">Cerrar</button></div>`);document.getElementById("gr_x").onclick=cerrarModal;return;}
   modal(`<h2 style="margin:4px 0 6px;font-size:17px">Copias en Drive</h2><p class="hint" style="margin:0 0 8px">Toca una para ver c\u00f3mo recuperarla.</p>`+files.map((f,i)=>`<button class="btn ghost" data-gr="${i}" style="width:100%;margin-bottom:6px;text-align:left"><b>${f.name.replace("turnoscalc-","").replace(".json","")}</b><br><small>${gdFmt(f.modifiedTime)}</small></button>`).join("")+`<div class="actions"><button class="btn ghost" id="gr_x">Cerrar</button></div>`);
@@ -422,19 +425,19 @@ async function gdRestoreUI(){try{const files=(await gdList()).filter(f=>/^turnos
 async function gdConnect(){try{await gdToken(true);
   try{const r=await gdFetch(GD_API+"/about?fields=user(emailAddress)");const u=await r.json();gd.email=(u.user&&u.user.emailAddress)||"";localStorage.setItem("emb_gd_mail",gd.email);}catch(e){}
   localStorage.setItem("emb_gd_on","1");gd.err="";fillGd();await gdSync();fillGd();}catch(e){gd.err=e.message||"No se pudo conectar";fillGd();try{toast("No se pudo conectar con Google");}catch(x){}}}
-function gdDisconnect(){try{localStorage.removeItem("emb_gd_on");localStorage.removeItem("emb_gd_mail");}catch(e){}gd.tok=null;gd.email="";gd.err="";fillGd();toast("Desconectado de Drive (tus copias siguen en tu Drive)");}
+function gdDisconnect(){try{localStorage.removeItem("emb_gd_on");localStorage.removeItem("emb_gd_mail");localStorage.removeItem("emb_gd_tok");}catch(e){}gd.tok=null;gd.email="";gd.err="";gd.need=false;gd.dirty=false;fillGd();toast("Desconectado de Drive (tus copias siguen en tu Drive)");}
 function fillGd(){const el=document.getElementById("gd_card");if(!el)return;
   if(!GD_CLIENT_ID){el.innerHTML="";return;}
   if(!gdAvail()){el.innerHTML=`<div class="card"><div style="font-weight:800;font-size:14px">Copia en Google Drive</div><div class="hint" style="margin:4px 0 8px">Solo funciona en la <b>direcci\u00f3n nueva</b> de la app. Est\u00e1s en una antigua. Exporta tu copia aqu\u00ed, abre la nueva e imp\u00f3rtala all\u00ed.</div><div class="actions" style="margin-top:0"><a class="btn primary" href="https://calendario-sabanilla.github.io/" style="text-decoration:none;text-align:center">Abrir la direcci\u00f3n nueva</a></div></div>`;return;}
   if(!gdOn()){el.innerHTML=`<div class="card"><div style="font-weight:800;font-size:14px">Copia en Google Drive</div><div class="hint" style="margin:4px 0 8px">Tus datos se guardan solos en una carpeta <b>privada de tu propio Drive</b>. Nadie m\u00e1s puede verlos. Si pierdes o cambias de m\u00f3vil, los recuperas.</div>${gd.err?`<div class="hint" style="color:var(--emb);font-weight:700;margin:0 0 6px">${gd.err}</div>`:""}<div class="actions" style="margin-top:0"><button class="btn primary" id="gd_con">Conectar con Google</button></div></div>`;
     const c=document.getElementById("gd_con");if(c)c.onclick=gdConnect;return;}
-  const age=gd.last?Math.floor((Date.now()-gd.last)/60000):null;const ok=!gd.err&&age!==null;const sav=gd.ui||gd.busy;
+  const age=gd.last?Math.floor((Date.now()-gd.last)/60000):null;const ok=!gd.err&&age!==null;const sav=gd.ui||gd.busy;const nd=!gd.err&&(gd.need||(gd.dirty&&!gdTokOk()));
   const when=age===null?"a\u00fan no":(age<1?"ahora mismo":(age<60?"hace "+age+" min":(age<1440?"hace "+Math.floor(age/60)+" h":"hace "+Math.floor(age/1440)+" d")));
-  el.innerHTML=`<div class="card" style="background:${gd.err?"var(--emb-soft)":"var(--dieta-soft)"};border-color:${gd.err?"#EFCACA":"#BFD8B6"}"><div style="font-weight:800;font-size:14px;color:${gd.err?"var(--emb)":"var(--dieta)"}">${gd.err?"Drive: "+gd.err:(sav?"Guardando en Drive\u2026":"Copia en Drive activa")}</div>`+
-   `<div class="hint" style="margin:4px 0 8px">${gd.email?gd.email+" &middot; ":""}\u00daltima copia: <b>${when}</b>${gd.last?" ("+new Date(gd.last).toLocaleTimeString("es-ES",{hour:"2-digit",minute:"2-digit"})+")":""}</div>`+
-   `<div class="actions" style="margin-top:0;flex-wrap:wrap"><button class="btn primary" id="gd_now" ${sav?"disabled":""} style="${sav?"opacity:.6":""}">${sav?"Guardando\u2026":(gd.err?"Reconectar":"Guardar ahora")}</button><button class="btn ghost" id="gd_res">Restaurar desde Drive</button><button class="btn ghost" id="gd_off">Desconectar</button></div></div>`;
+  el.innerHTML=`<div class="card" style="background:${gd.err?"var(--emb-soft)":(nd?"#FFF4E0":"var(--dieta-soft)")};border-color:${gd.err?"#EFCACA":(nd?"#F0D9A8":"#BFD8B6")}"><div style="font-weight:800;font-size:14px;color:${gd.err?"var(--emb)":(nd?"#8A5A00":"var(--dieta)")}">${gd.err?"Drive: "+gd.err:(sav?"Guardando en Drive\u2026":(nd?"Drive: hay que renovar el permiso":"Copia en Drive activa"))}</div>`+
+   `<div class="hint" style="margin:4px 0 8px">${nd&&!sav?"<div style=\"margin-bottom:4px\">El permiso de Google dura 1 hora. Pulsa <b>Renovar y guardar</b>: se abre una ventana de Google que se cierra sola. Lo que hayas cambiado se sube entonces.</div>":""}${gd.email?gd.email+" &middot; ":""}\u00daltima copia: <b>${when}</b>${gd.last?" ("+new Date(gd.last).toLocaleTimeString("es-ES",{hour:"2-digit",minute:"2-digit"})+")":""}</div>`+
+   `<div class="actions" style="margin-top:0;flex-wrap:wrap"><button class="btn primary" id="gd_now" ${sav?"disabled":""} style="${sav?"opacity:.6":""}">${sav?"Guardando\u2026":(gd.err?"Reconectar":(nd?"Renovar y guardar":"Guardar ahora"))}</button><button class="btn ghost" id="gd_res">Restaurar desde Drive</button><button class="btn ghost" id="gd_off">Desconectar</button></div></div>`;
   document.getElementById("gd_now").onclick=async()=>{if(gd.ui||gd.busy)return;const before=gd.last;gd.ui=true;fillGd();
-    if(gd.err){try{await gdToken(true);gd.err="";}catch(e){gd.err=e.message;gd.ui=false;fillGd();try{toast("No se pudo reconectar");}catch(x){}return;}}
+    if(gd.err||!gdTokOk()){try{await gdToken(true);gd.err="";gd.need=false;}catch(e){gd.err="";gd.need=true;gd.ui=false;fillGd();try{toast("No se renov\u00f3 el permiso de Google");}catch(x){}return;}}
     await gdSync();gd.ui=false;fillGd();
     try{if(gd.err)toast("No se pudo guardar: "+gd.err);else if(gd.last>(before||0))toast("\u2713 Copia guardada en Drive \u00b7 "+new Date(gd.last).toLocaleTimeString("es-ES",{hour:"2-digit",minute:"2-digit"}));}catch(x){}};
   document.getElementById("gd_res").onclick=gdRestoreUI;document.getElementById("gd_off").onclick=gdDisconnect;}
@@ -913,6 +916,6 @@ document.getElementById("pnext").onclick=()=>{shiftPeriod(1);render();};
 document.getElementById("fab").onclick=()=>{if(tab==="servicios"){if(isGrupo(browseL))editGrupo(browseL,null);else editServicio(null);}else{if(tab!=="dias"){tab="dias";render();}editDia(null);}};
 render();
 try{if(navigator.storage&&navigator.storage.persist)navigator.storage.persist();}catch(e){}
-checkRecovery();snapSoon();setTimeout(checkIntegrity,1500);if(gdOn())setTimeout(()=>{gdToken(false).then(()=>gdSync()).catch(e=>{gd.err=e.message||"Reconecta con Google";fillGd();});},2500);document.addEventListener("visibilitychange",()=>{if(document.hidden&&gdOn()&&gd.tok&&Date.now()<gd.exp-60000)gdPush();});
+checkRecovery();snapSoon();setTimeout(checkIntegrity,1500);if(gdOn())setTimeout(()=>{gdToken(false).then(()=>gdSync()).catch(e=>{gd.need=true;gd.err="";fillGd();});},2500);document.addEventListener("visibilitychange",()=>{if(document.hidden&&gdOn()&&gd.tok&&Date.now()<gd.exp-60000)gdPush();});
 if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));}
 </script></body></html>
