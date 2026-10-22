@@ -1,6 +1,6 @@
 <!DOCTYPE html><html lang="es"><head>
 <meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover"/>
-<meta name="theme-color" content="#C62828"/><link rel="manifest" href="manifest.webmanifest"/><link rel="apple-touch-icon" href="icon-192.png"/><title>Turnos + Calc EMB</title>
+<meta name="theme-color" content="#C62828"/><title>Calculadora EMB 2026</title>
 <style>
 :root{--emb:#C62828;--emb-dark:#8E1F1F;--emb-soft:#FBEAEA;--bg:#F4F2EE;--surface:#FFFFFF;--line:#E3E0D8;--ink:#26241F;--muted:#6E6A62;--hint:#9A958B;--noct:#3949AB;--noct-soft:#E8EAF6;--dieta:#2E7D32;--dieta-soft:#E7F1E3;--m:#BBD8F6;--m-tx:#0C447C;--m-sat:#E6F1FB;--m-sat-tx:#185FA5;--t:#FBCE82;--t-tx:#7A4708;--t-sat:#FBEEDA;--t-sat-tx:#9A6411;--d:#DCD9D0;--d-tx:#46453F;--v:#C6E0A0;--v-tx:#2A5410;--v2:#A6E4D1;--v2-tx:#0A5040;--fnr:#F6C6C6;--fnr-tx:#7A1F1F;--sun:#FCE7E7;--sun-tx:#A32D2D;}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}html,body{margin:0;padding:0;}
@@ -117,7 +117,7 @@ const STORE="emb_calc_2026_v4";
 const NIGHT=[[0,390],[1320,1830]];
 const MN=["enero","febrero","marzo","abril","mayo","junio","julio","agosto","septiembre","octubre","noviembre","diciembre"];
 const TIPOL={Lab:"Laborable",Sab:"Sábado",Fest:"Festivo"};
-const APP_VER="4.7";
+const APP_VER="4.9";
 let state=load(),tab="calendario",period=currentPeriod();
 
 /* ===== Calendario de turnos (fusion) ===== */
@@ -207,7 +207,7 @@ function renderCalGrid(){
     else if(!code){bg="var(--surface)";tx="var(--hint)";}
     else{const c=CAL_COLORS[show]||["#eee","#333"];bg=c[0];tx=c[1];}
     const f=calFecha(m,d);const reg=calRegFor(f);let sub="",apcls="";let marks="";if(reg&&reg.nota)marks+="<span class='cdot note'></span>";if(_ov)marks+="<span class='cdot ovr'></span>";
-    if(reg){const _rk=espDia(reg);if(_rk){sub="<span class='calsub' style='color:"+ESPD[_rk].cor+"'>"+(_rk==="FOD"?"FOD":_rk==="ENF"?"Baja":_rk==="MED"?"M\u00e9dico":"FNR")+"</span>";}else{const cc=diaCalc(diaTramos(reg));sub="<span class='calsub'>"+hhmm(cc.horas).replace(" h","h")+"</span>";}apcls=" apunt";}
+    if(reg){const _rk=espDia(reg);if(_rk){sub="<span class='calsub' style='color:"+ESPD[_rk].cor+"'>"+(_rk==="FOD"?"FOD":_rk==="ENF"?"Baja":_rk==="COM"?"Comit\u00e9":_rk==="MED"?"M\u00e9dico":"FNR")+"</span>";}else{const cc=diaCalc(diaTramos(reg));sub="<span class='calsub'>"+hhmm(cc.horas).replace(" h","h")+"</span>";}apcls=" apunt";}
     const isSel=calMulti&&calSel.includes(f);const isT=(calToday.getFullYear()===calYear&&calToday.getMonth()===m&&calToday.getDate()===d);
     html+="<div class='calday"+(isT?" today":"")+apcls+(isSel?" selmark":"")+"' style='background:"+bg+";color:"+tx+"' data-f='"+f+"'>"+marks+"<span class='caln'>"+d+"</span><span class='callab'>"+(code?show:"")+"</span>"+sub+"</div>";
   }
@@ -238,6 +238,7 @@ function openCalDia(f){const reg=calRegFor(f);if(reg)editDia(reg.id);else editDi
 
 function load(){try{const s=JSON.parse(localStorage.getItem(STORE));if(s&&s.registro){if(!s.serv)s.serv={};if(!s.jor)s.jor={};if(!s.carry)s.carry={};if(!s.ovr)s.ovr={};if(!s._del)s._del={};return s;}}catch(e){}return{registro:[],serv:{},jor:{},carry:{},ovr:{}};}
 try{if(!localStorage.getItem("emb_born"))localStorage.setItem("emb_born",String(Date.now()));}catch(e){}
+try{let bl=[];try{bl=JSON.parse(localStorage.getItem("emb_boots")||"[]");}catch(e){}if(!Array.isArray(bl))bl=[];const _sa=(window.matchMedia&&matchMedia("(display-mode: standalone)").matches)?"app":"web";bl.push([Date.now(),state?state.registro.length:-1,_sa]);localStorage.setItem("emb_boots",JSON.stringify(bl.slice(-12)));}catch(e){}
 window.addEventListener("beforeinstallprompt",e=>{e.preventDefault();window._bip=e;});
 async function fillProt(){
   const el=document.getElementById("prot_card");if(!el)return;
@@ -256,10 +257,19 @@ async function fillProt(){
    L(okI,okI?"App instalada":"Abierta en el navegador. Inst\u00e1lala: men\u00fa \u22ee \u2192 Instalar aplicaci\u00f3n")+
    L(bk!==null&&bk<7,bk===null?"Nunca has exportado una copia":"\u00daltima copia exportada: hace "+bk+" d\u00eda"+(bk===1?"":"s"))+
    `<div class="hint" style="margin:6px 0 0"><b>${state.registro.length}</b> d\u00edas guardados en total${state.registro.length?" (\u00faltimo: "+fmtF(lastFecha())+")":""}, ${Object.keys(state.serv||{}).length} servicios propios. Guardando datos en este m\u00f3vil desde el <b>${bd}</b>${usage!=null?" &middot; "+(usage/1048576).toFixed(1)+" MB":""}. Si aqu\u00ed sale hoy y ya usabas la app, algo los borr\u00f3.</div>`+
-   `<div class="actions" style="margin-top:8px">${window._bip?`<button class="btn ghost" id="prot_inst">Instalar app</button>`:""}<button class="btn primary" id="prot_exp">Exportar copia ahora</button></div></div>`;
+   `<div class="actions" style="margin-top:8px">${window._bip?`<button class="btn ghost" id="prot_inst">Instalar app</button>`:""}<button class="btn ghost" id="prot_diag">Copiar diagn\u00f3stico</button><button class="btn primary" id="prot_exp">Exportar copia ahora</button></div></div>`;
   const pe=document.getElementById("prot_exp");if(pe)pe.onclick=()=>exportData();
+  const dg=document.getElementById("prot_diag");if(dg)dg.onclick=async()=>{copyText(await buildDiag(pers,usage,sa));};
   const pi=document.getElementById("prot_inst");if(pi)pi.onclick=async()=>{try{window._bip.prompt();await window._bip.userChoice;}catch(e){}window._bip=null;fillProt();};
 }
+async function buildDiag(pers,usage,sa){
+  const f=t=>{try{return new Date(t).toLocaleString("es-ES");}catch(e){return "?";}};
+  let sn=[];try{sn=await idbAllSnaps();}catch(e){}
+  let bl=[];try{bl=JSON.parse(localStorage.getItem("emb_boots")||"[]");}catch(e){}
+  const c=cnt(state);let gdt="";try{gdt=localStorage.getItem("emb_gd_last")||"";}catch(e){}
+  const L=["DIAGNOSTICO Turnos+Calc EMB","Version: "+APP_VER,"Origen: "+location.origin+location.pathname,"Modo: "+(sa?"app instalada":"navegador"),"Persistente: "+pers,"Uso almacenamiento: "+(usage!=null?(usage/1024).toFixed(0)+" KB":"?"),"Datos desde: "+f(+localStorage.getItem("emb_born")||0),"Dias/servicios/jornadas: "+c.d+"/"+c.s+"/"+c.j,"Copias internas (IDB): "+sn.length,"Drive: "+(gdt?f(+gdt)||gdt:"sin copia"),"Aperturas (fecha, dias, modo):"];
+  bl.forEach(b=>L.push("  "+f(b[0])+" | "+b[1]+" | "+b[2]));
+  L.push("UA: "+navigator.userAgent);return L.join("\n");}
 function lastFecha(){return state.registro.reduce((m,e)=>e.fecha>m?e.fecha:m,"");}
 function fmtF(f){return f?f.slice(8,10)+"/"+f.slice(5,7)+"/"+f.slice(0,4):"";}
 function periodHint(){
@@ -484,7 +494,7 @@ function periodFromDate(f){const d=new Date(f+"T12:00:00");let m=d.getMonth(),y=
 let _codCache={};
 function codesOfYear(y){const k=y+"|"+calType+"|"+calGrp;if(calType!=="ESP"&&_codCache[k])return _codCache[k];const _s=calYear;calYear=y;let r=null;try{r=calCodes();}catch(e){r=null;}calYear=_s;if(calType!=="ESP")_codCache[k]=r;return r;}
 function codeForFecha(f){if(!f||f.length<10)return null;const y=+f.slice(0,4),m=+f.slice(5,7)-1,d=+f.slice(8,10);const c=codesOfYear(y);return (c&&c[m])?c[m][d-1]||null:null;}
-const ESPD={FOD:{lbl:"FOD \u2014 fiesta por otro d\u00eda",cor:"var(--dieta)",bg:"var(--dieta-soft)",bd:"#BFD8B6",resta:true},ENF:{lbl:"Enfermo (baja)",cor:"var(--emb)",bg:"var(--emb-soft)",bd:"#EFCACA",resta:false,jornada:true},MED:{lbl:"M\u00e9dico",cor:"var(--noct)",bg:"var(--noct-soft)",bd:"#C5CAE9",resta:false},FNR:{lbl:"FNR (fiesta en d\u00eda libre)",cor:"var(--hint)",bg:"var(--surface)",bd:"var(--line)",resta:false,libre:true}};
+const ESPD={FOD:{lbl:"FOD \u2014 fiesta por otro d\u00eda",cor:"var(--dieta)",bg:"var(--dieta-soft)",bd:"#BFD8B6",resta:true},ENF:{lbl:"Enfermo (baja)",cor:"var(--emb)",bg:"var(--emb-soft)",bd:"#EFCACA",resta:false,jornada:true},COM:{lbl:"Comit\u00e9",cor:"var(--emb)",bg:"var(--emb-soft)",bd:"#EFCACA",resta:false,jornada:true},MED:{lbl:"M\u00e9dico",cor:"var(--noct)",bg:"var(--noct-soft)",bd:"#C5CAE9",resta:false},FNR:{lbl:"FNR (fiesta en d\u00eda libre)",cor:"var(--hint)",bg:"var(--surface)",bd:"var(--line)",resta:false,libre:true}};
 function espDia(e){return (e&&(e.esp||(e.fod?"FOD":null)))||null;}
 function tipoForDate(f){const d=new Date(f+"T12:00:00").getDay();return d===6?"Sab":d===0?"Fest":"Lab";}
 function toMin(h){if(!h)return null;const[a,b]=h.split(":").map(Number);return a*60+b;}
@@ -506,8 +516,8 @@ function jorTipo(){if(typeof calType==="undefined")return "100";if(calType==="ES
 function jorStd(){return jorTipo()==="50"?3.875:JOR_STD;}
 function jorMin(){return jorTipo()==="50"?0:JOR_MIN;}
 function totalAcum(){let a=0;for(const e of state.registro){const _k=espDia(e);if(_k){if(ESPD[_k].resta)a-=jorStd();continue;}const c=diaCalc(diaTramos(e));a+=Math.max(c.horas,jorMin())-jorStd();}return a+(+state.adj||0);}
-function periodTotals(){let horas=0,noct=0,acum=0,nd=0,nc=0,nce=0,ndias=0,nsab=0,ndom=0,nfod=0,nfr=0,nenf=0,nmed=0;
-for(const e of state.registro){if(!inPeriod(e.fecha))continue;const _k=espDia(e);if(_k){if(ESPD[_k].resta)acum-=jorStd();if(ESPD[_k].jornada){horas+=jorStd();ndias++;}if(_k==="FOD")nfod++;else if(_k==="ENF")nenf++;else if(_k==="MED")nmed++;continue;}ndias++;const c=diaCalc(diaTramos(e));if(c.horas>0){const _w=new Date(e.fecha+"T12:00:00").getDay();const _c=codeForFecha(e.fecha);if(_w===6)nsab++;else if(_w===0)ndom++;if(_c==="D")nfr++;}horas+=c.horas;noct+=c.noct;acum+=Math.max(c.horas,jorMin())-jorStd();const d=e.dietas||{};if(d.desayuno)nd++;if(d.comida)nc++;if(d.cena)nce++;}return{horas,noct,acum,nd,nc,nce,ndias,nsab,ndom,nfod,nfr,nenf,nmed};}
+function periodTotals(){let horas=0,noct=0,acum=0,nd=0,nc=0,nce=0,ndias=0,nsab=0,ndom=0,nfod=0,nfr=0,nenf=0,nmed=0,ncom=0;
+for(const e of state.registro){if(!inPeriod(e.fecha))continue;const _k=espDia(e);if(_k){if(ESPD[_k].resta)acum-=jorStd();if(ESPD[_k].jornada){horas+=jorStd();ndias++;}if(_k==="FOD")nfod++;else if(_k==="ENF")nenf++;else if(_k==="MED")nmed++;else if(_k==="COM")ncom++;continue;}ndias++;const c=diaCalc(diaTramos(e));if(c.horas>0){const _w=new Date(e.fecha+"T12:00:00").getDay();const _c=codeForFecha(e.fecha);if(_w===6)nsab++;else if(_w===0)ndom++;if(_c==="D")nfr++;}horas+=c.horas;noct+=c.noct;acum+=Math.max(c.horas,jorMin())-jorStd();const d=e.dietas||{};if(d.desayuno)nd++;if(d.comida)nc++;if(d.cena)nce++;}return{horas,noct,acum,nd,nc,nce,ndias,nsab,ndom,nfod,nfr,nenf,nmed,ncom};}
 function fmtSaldo(d){d=Math.round(d*100)/100;return (d>=0?"+":"−")+Math.abs(d).toFixed(2).replace(".",",")+" h";}
 
 function copyText(t){if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(t).then(()=>toast("Copiado")).catch(()=>fallbackCopy(t));}else fallbackCopy(t);}
@@ -635,6 +645,7 @@ function viewResumen(){const t=periodTotals();const tot=totalAcum();return backu
   <div class="bigrow"><span class="k">Días trabajados</span><span class="v">${t.ndias}</span></div>
   <div class="bigrow"><span class="k">FOD (fiesta por otro día)</span><span class="v">${t.nfod}</span></div>
   <div class="bigrow"><span class="k">Días de baja (enfermo)</span><span class="v">${t.nenf}</span></div>
+  <div class="bigrow"><span class="k">Días de comité</span><span class="v">${t.ncom}</span></div>
   <div class="bigrow"><span class="k">Días de médico</span><span class="v">${t.nmed}</span></div></div>
   <div class="card"><div class="bigrow"><span class="k">Desayunos</span><span class="v">${t.nd}</span></div>
   <div class="bigrow"><span class="k">Comidas</span><span class="v">${t.nc}</span></div>
@@ -682,7 +693,7 @@ function editDia(id,fecha){
     <div class="field" style="margin-top:6px"><label>Comentario del d\u00eda (opcional)</label><textarea id="e_nota" rows="2" style="width:100%;box-sizing:border-box;border:1px solid var(--line);border-radius:9px;padding:8px;font-family:inherit;font-size:14px;resize:vertical" placeholder="ej. cambio con Fulano, refuerzo\u2026">${(E.nota||"").replace(/</g,"&lt;")}</textarea></div>
     <div class="actions">${id?'<button class="btn danger" id="e_del">Borrar</button>':''}<button class="btn ghost" id="e_cancel">Cancelar</button><button class="btn primary" id="e_save">Guardar</button></div>`);
   const fTipo=document.getElementById("f_tipo"),fFecha=document.getElementById("f_fecha");
-  function fillTipos(){const L=Object.assign({},TIPOL);Object.keys(ESPD).forEach(k=>L[k]=ESPD[k].lbl);const cur=espDia(E)||E.tipo;fTipo.innerHTML=["Lab","Sab","Fest","FNR","FOD","ENF","MED"].map(t=>`<option value="${t}" ${t===cur?"selected":""}>${L[t]}</option>`).join("");}
+  function fillTipos(){const L=Object.assign({},TIPOL);Object.keys(ESPD).forEach(k=>L[k]=ESPD[k].lbl);const cur=espDia(E)||E.tipo;fTipo.innerHTML=["Lab","Sab","Fest","FNR","FOD","ENF","COM","MED"].map(t=>`<option value="${t}" ${t===cur?"selected":""}>${L[t]}</option>`).join("");}
   fillTipos();
   fFecha.onchange=()=>{E.fecha=fFecha.value;if(!id){E.tipo=tipoForDate(E.fecha);fillTipos();}renderBloques();};
   fTipo.onchange=()=>{if(ESPD[fTipo.value]){E.esp=fTipo.value;E.fod=(fTipo.value==="FOD");E.dietas={desayuno:false,comida:false,cena:false};manualDiet=true;E.fnr=false;renderBloques();return;}E.esp=null;E.fod=false;E.tipo=fTipo.value;E.bloques.forEach(b=>{if(!b.man){const ss=servsFor(b.linea,E.tipo);if(!ss.includes(b.servicio))b.servicio=ss[0]||"";}});renderBloques();};
@@ -738,7 +749,7 @@ function openSaveServ(i){
 }
 function renderBloques(){
   const cont=document.getElementById("bloques");
-  const _ed=espDia(E);if(_ed){const z=ESPD[_ed];cont.innerHTML=`<div class="blq" style="background:${z.bg};border-color:${z.bd}"><div style="font-size:14px;font-weight:800;color:${z.cor}">${z.lbl}</div><div class="hint" style="margin:4px 0 0">${z.resta?("No se trabaja. Descuenta <b>"+hhmm(jorStd())+"</b> del saldo acumulado."):z.jornada?("Cuenta como d\u00eda trabajado y suma <b>"+hhmm(jorStd())+"</b> de jornada (saldo neutro)."):z.libre?"D\u00eda libre (cae en fiesta). No se trabaja, no suma ni resta. Solo para distinguirlo.":"No suma ni resta. Solo queda registrado."}</div></div>`;return;}
+  const _ed=espDia(E);if(_ed){const z=ESPD[_ed];cont.innerHTML=`<div class="blq" style="background:${z.bg};border-color:${z.bd}"><div style="font-size:14px;font-weight:800;color:${z.cor}">${z.lbl}</div><div class="hint" style="margin:4px 0 0">${z.resta?("No se trabaja. Descuenta <b>"+hhmm(jorStd())+"</b> del saldo acumulado."):z.jornada?("Cuenta como d\u00eda trabajado (sin pluses, nocturnidad ni dietas) y suma <b>"+hhmm(jorStd())+"</b> de jornada (saldo neutro)."):z.libre?"D\u00eda libre (cae en fiesta). No se trabaja, no suma ni resta. Solo para distinguirlo.":"No suma ni resta. Solo queda registrado."}</div></div>`;return;}
   cont.innerHTML=E.bloques.map((b,i)=>{
     const rm=E.bloques.length>1?`<button class="rm" data-rm="${i}">&times;</button>`:"";
     const tramos=bloqueTramos(b,E.tipo).map(x=>x[0]+"–"+x[1]).join("  +  ")||"—";
