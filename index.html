@@ -117,7 +117,7 @@ const STORE="emb_calc_2026_v4";
 const NIGHT=[[0,390],[1320,1830]];
 const MN=["enero","febrero","marzo","abril","mayo","junio","julio","agosto","septiembre","octubre","noviembre","diciembre"];
 const TIPOL={Lab:"Laborable",Sab:"Sábado",Fest:"Festivo"};
-const APP_VER="4.10";
+const APP_VER="4.11";
 let state=load(),tab="calendario",period=currentPeriod();
 
 /* ===== Calendario de turnos (fusion) ===== */
@@ -659,7 +659,7 @@ function viewDias(){
   const list=state.registro.filter(e=>inPeriod(e.fecha)).sort((a,b)=>a.fecha<b.fecha?-1:1);
   if(!list.length)return periodHint()+`<div class="empty">No hay d\u00edas en este per\u00edodo.<br>Pulsa \u201c+ A\u00f1adir d\u00eda\u201d.</div>`;
   let h="<div class='card'>";
-  for(const e of list){const _k=espDia(e);if(_k){const dt2=new Date(e.fecha+"T12:00:00"),dn2=["DO","LU","MA","MI","JU","VI","SA"][dt2.getDay()];h+=`<div class="diarow" data-ed="${e.id}"><div class="dleft"><div class="dfecha">${dn2} ${e.fecha.slice(8,10)}/${e.fecha.slice(5,7)}</div><div class="dlab" style="color:${ESPD[_k].cor};font-weight:800">${ESPD[_k].lbl}</div></div><div class="dright"><div class="dhoras" style="color:${ESPD[_k].resta?"var(--emb)":"var(--ink)"}">${ESPD[_k].resta?fmtSaldo(-jorStd()):(ESPD[_k].jornada?hhmm(jorStd()):"")}</div></div></div>`;continue;}const c=diaCalc(diaTramos(e));const d=e.dietas||{};
+  for(const e of list){const _k=espDia(e);if(_k){const dt2=new Date(e.fecha+"T12:00:00"),dn2=["DO","LU","MA","MI","JU","VI","SA"][dt2.getDay()];h+=`<div class="item" data-eid="${e.id}"><div class="d"><b>${dt2.getDate()}</b><small>${dn2}</small></div><div class="mid"><div class="t1" style="color:${ESPD[_k].cor}">${ESPD[_k].lbl}</div><div class="t2">${e.lab&&e.lab!==ESPD[_k].lbl?e.lab:"&nbsp;"}</div></div><div class="r"><b style="color:${ESPD[_k].resta?"var(--emb)":"var(--ink)"}">${ESPD[_k].resta?fmtSaldo(-jorStd()):(ESPD[_k].jornada?hhmm(jorStd()):"")}</b></div></div>`;continue;}const c=diaCalc(diaTramos(e));const d=e.dietas||{};
     const dt=new Date(e.fecha+"T12:00:00"),dn=["DO","LU","MA","MI","JU","VI","SA"][dt.getDay()];
     let chips="";if(c.noct>0.01)chips+="<span class='chip n'>noct "+hhmm(c.noct)+"</span>";
     if(d.desayuno)chips+="<span class='chip di'>Des</span>";if(d.comida)chips+="<span class='chip di'>Com</span>";if(d.cena)chips+="<span class='chip di'>Cen</span>";
