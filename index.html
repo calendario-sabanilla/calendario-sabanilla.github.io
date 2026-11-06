@@ -117,7 +117,7 @@ const STORE="emb_calc_2026_v4";
 const NIGHT=[[0,390],[1320,1830]];
 const MN=["enero","febrero","marzo","abril","mayo","junio","julio","agosto","septiembre","octubre","noviembre","diciembre"];
 const TIPOL={Lab:"Laborable",Sab:"Sábado",Fest:"Festivo"};
-const APP_VER="4.9";
+const APP_VER="4.10";
 let state=load(),tab="calendario",period=currentPeriod();
 
 /* ===== Calendario de turnos (fusion) ===== */
@@ -501,9 +501,10 @@ function toMin(h){if(!h)return null;const[a,b]=h.split(":").map(Number);return a
 function spanMin(i,f){const a=toMin(i),b=toMin(f);if(a==null||b==null)return 0;return b>=a?b-a:b+1440-a;}
 function nightAbs(a,b){let t=0;for(const[w0,w1]of NIGHT)t+=Math.max(0,Math.min(b,w1)-Math.max(a,w0));return t;}
 function turnoAvail(sd){return{1:!!(sd&&sd.t1),2:!!(sd&&sd.t2),P:!!(sd&&sd.t1&&sd.t2)};}
-function turnoTramos(sd,t){if(!sd)return[];if(t==='1')return sd.t1?[sd.t1]:[];if(t==='2')return sd.t2?[sd.t2]:[];return[sd.t1,sd.t2].filter(Boolean);}
+function xTr(a){return (a||[]).filter(x=>x&&x[2]&&x[3]).map(x=>[x[2],x[3]]);}
+function turnoTramos(sd,t){if(!sd)return[];const e1=xTr(sd.x1),e2=xTr(sd.x2);if(t==='1')return sd.t1?[sd.t1,...e1]:[];if(t==='2')return sd.t2?[sd.t2,...e2]:[];return[...(sd.t1?[sd.t1,...e1]:[]),...(sd.t2?[sd.t2,...e2]:[])];}
 function groupServs(l){const set=new Set(Object.keys(jorGet(l)));Object.keys(state.serv||{}).forEach(k=>{const p=k.split("|");if(p[0]===l)set.add(p[2]);});return [...set].sort();}
-function bloqueTramos(b,tipo){if(b.man){return b.man.ini&&b.man.fin?[[b.man.ini,b.man.fin]]:[];}if(isGrupo(b.linea)){const jj=jorGet(b.linea)[b.servicio];if(jj)return jj.map(t=>[t[1],t[2]]);const sd=catSd(b.linea,tipo,b.servicio)||catSd(b.linea,"Lab",b.servicio)||catSd(b.linea,"Sab",b.servicio)||catSd(b.linea,"Fest",b.servicio);if(sd){const out=[];if(sd.t1)out.push(sd.t1);if(sd.t2)out.push(sd.t2);return out;}return [];}let sd=catSd(b.linea,tipo,b.servicio);if(!sd)sd=catSd(b.linea,"Lab",b.servicio)||catSd(b.linea,"Sab",b.servicio)||catSd(b.linea,"Fest",b.servicio);return turnoTramos(sd,b.turno);}
+function bloqueTramos(b,tipo){if(b.man){return b.man.ini&&b.man.fin?[[b.man.ini,b.man.fin]]:[];}if(isGrupo(b.linea)){const jj=jorGet(b.linea)[b.servicio];if(jj)return jj.map(t=>[t[1],t[2]]);const sd=catSd(b.linea,tipo,b.servicio)||catSd(b.linea,"Lab",b.servicio)||catSd(b.linea,"Sab",b.servicio)||catSd(b.linea,"Fest",b.servicio);if(sd){return turnoTramos(sd,'P');}return [];}let sd=catSd(b.linea,tipo,b.servicio);if(!sd)sd=catSd(b.linea,"Lab",b.servicio)||catSd(b.linea,"Sab",b.servicio)||catSd(b.linea,"Fest",b.servicio);return turnoTramos(sd,b.turno);}
 function diaTramos(e){let out=[];for(const b of e.bloques)for(const tr of bloqueTramos(b,e.tipo))out.push(tr);return out;}
 function diaCalc(tramos){let iv=tramos.map(([i,f])=>{let a=toMin(i),b=toMin(f);if(b<a)b+=1440;return[a,b];}).sort((x,y)=>x[0]-y[0]);let horas=0,noct=0,espera=0;for(let k=0;k<iv.length;k++){horas+=iv[k][1]-iv[k][0];noct+=nightAbs(iv[k][0],iv[k][1]);if(k>0){const g=iv[k][0]-iv[k-1][1];if(g>0&&g<60){horas+=g;espera+=g;}}}return{horas:horas/60,noct:noct/60,espera};}
 function diaDietas(tramos){if(!tramos.length)return{desayuno:false,comida:false,cena:false};const iv=tramos.map(([i,f])=>{let a=toMin(i),b=toMin(f);if(b<a)b+=1440;return[a,b];});const earliest=Math.min(...iv.map(x=>x[0])),latest=Math.max(...iv.map(x=>x[1]));const turno=earliest<780?1:2;return{desayuno:turno===1&&earliest<270,comida:turno===1?latest>930:earliest<810,cena:latest>1470};}
@@ -834,8 +835,8 @@ function viewServicios(){
   }
   const topts=["Lab","Sab","Fest"].map(t=>`<option value="${t}" ${browseT===t?"selected":""}>${TIPOL[t]}</option>`).join("");
   const ss=servsFor(browseL,browseT);
-  let rows=ss.map(s=>{const sd=catSd(browseL,browseT,s);const t1=sd&&sd.t1?("T1 "+sd.t1[0]+"–"+sd.t1[1]):"";const t2=sd&&sd.t2?("T2 "+sd.t2[0]+"–"+sd.t2[1]):"";const ov=state.serv[browseL+"|"+browseT+"|"+s]?" <span class='chip di'>guardado</span>":"";
-    return `<div class="item" data-skey="${browseL}|${browseT}|${s}"><div class="mid"><div class="t1">${s}${ov}</div><div class="t2">${[t1,t2].filter(Boolean).join("   ")||"sin horario"}</div></div><div class="r">&#8250;</div></div>`;}).join("");
+  let rows=ss.map(s=>{const sd=catSd(browseL,browseT,s);const t1=sd&&sd.t1?("T1 "+sd.t1[0]+"–"+sd.t1[1]):"";const t2=sd&&sd.t2?("T2 "+sd.t2[0]+"–"+sd.t2[1]):"";const nx=sd?((sd.x1||[]).length+(sd.x2||[]).length):0;const ov=state.serv[browseL+"|"+browseT+"|"+s]?" <span class='chip di'>guardado</span>":"";
+    return `<div class="item" data-skey="${browseL}|${browseT}|${s}"><div class="mid"><div class="t1">${s}${ov}${nx?" <span class='chip di'>+"+nx+"</span>":""}</div><div class="t2">${[t1,t2].filter(Boolean).join("   ")||"sin horario"}</div></div><div class="r">&#8250;</div></div>`;}).join("");
   if(!ss.length)rows='<div class="empty">Sin servicios aquí.</div>';
   return `${IMPBTN}<div class="card"><div class="fields"><div class="field"><label>Línea</label><select id="bL">${lopts}</select></div><div class="field"><label>Tipo de día</label><select id="bT">${topts}</select></div></div></div><div class="card">${rows}</div><p class="hint">Toca un servicio para editar sus horas. “+ Nuevo servicio” para crear uno que no esté.</p>`;
 }
@@ -892,30 +893,44 @@ function editGrupo(group,name){
   };
   renderG();
 }
+let XA={1:[],2:[]};
 function editServicio(key){
   let l=browseL,t=browseT,s="";let sd=null;
   if(key){const p=key.split("|");l=p[0];t=p[1];s=p[2];sd=catSd(l,t,s);}
   sd=sd||{};const a=sd.t1||["",""],b=sd.t2||["",""];
+  XA={1:(sd.x1||[]).map(x=>[x[0]||"",x[1]||"",x[2]||"",x[3]||""]),2:(sd.x2||[]).map(x=>[x[0]||"",x[1]||"",x[2]||"",x[3]||""])};
   openSheet(`<div class="grab"></div><h2>${key?"Editar":"Nuevo"} servicio</h2>
    <div class="fields"><div class="field"><label>Línea</label><input id="s_l" value="${l}"></div>
    <div class="field"><label>Tipo de día</label><select id="s_t">${["Lab","Sab","Fest"].map(x=>`<option value="${x}" ${x===t?"selected":""}>${TIPOL[x]}</option>`).join("")}</select></div>
    <div class="field full"><label>Nº servicio</label><input id="s_s" value="${s}"></div></div>
    <div style="font-size:12px;color:var(--muted);font-weight:700;margin:12px 0 4px">Turno 1 · mañana</div>
    <div class="fields"><div class="field"><label>Inicio</label><input id="s_i1" type="time" value="${a[0]}"></div><div class="field"><label>Fin</label><input id="s_f1" type="time" value="${a[1]}"></div></div>
+   <div id="xa1"></div><button class="addbtn" id="xadd1" style="margin:6px 0 0;padding:8px;font-size:13px">+ Añadir servicio al turno 1</button>
    <div style="font-size:12px;color:var(--muted);font-weight:700;margin:12px 0 4px">Turno 2 · tarde</div>
    <div class="fields"><div class="field"><label>Inicio</label><input id="s_i2" type="time" value="${b[0]}"></div><div class="field"><label>Fin</label><input id="s_f2" type="time" value="${b[1]}"></div></div>
-   <p class="hint">Rellena uno o los dos turnos. Se guarda y aparece al elegir esa línea y servicio.</p>
+   <div id="xa2"></div><button class="addbtn" id="xadd2" style="margin:6px 0 0;padding:8px;font-size:13px">+ Añadir servicio al turno 2</button>
+   <p class="hint">Rellena uno o los dos turnos. Los servicios añadidos (garaje, otra línea…) se suman a ese turno al apuntarlo. Se guarda y aparece al elegir esa línea y servicio.</p>
    <div style="font-size:12px;color:var(--muted);font-weight:700;margin:12px 0 4px">Apuntar en un día</div>
    <div class="fields" style="align-items:end"><div class="field"><label>Día</label><input id="s_fecha" type="date" value="${defaultFecha()}"></div><div class="field"><label>Turno</label><select id="s_turno"><option value="1">Turno 1</option><option value="2">Turno 2</option><option value="P">Partida</option></select></div></div>
    <button class="addbtn" id="s_ap" style="background:var(--dieta);color:#fff;border-style:solid;border-color:var(--dieta);margin-top:8px">Apuntar este día</button>
    <div class="actions">${key&&state.serv[key]?'<button class="btn danger" id="s_del">Borrar</button>':''}<button class="btn ghost" id="s_c">Cancelar</button><button class="btn primary" id="s_sv">Guardar</button></div>`);
+  function renderX(){[1,2].forEach(k=>{const c=document.getElementById("xa"+k);c.innerHTML=XA[k].map((x,i)=>`<div class="blq"><button class="rm" data-xr="${k}|${i}">&times;</button><div class="fields"><div class="field"><label>Línea / lugar</label><input data-xl="${k}|${i}" value="${x[0]}" placeholder="ej. 3136 o Garaje"></div><div class="field"><label>Servicio</label><input data-xs="${k}|${i}" value="${x[1]}" placeholder="ej. 82"></div></div><div class="fields" style="margin-top:6px"><div class="field"><label>Inicio</label><input type="time" data-xi="${k}|${i}" value="${x[2]}"></div><div class="field"><label>Fin</label><input type="time" data-xf="${k}|${i}" value="${x[3]}"></div></div></div>`).join("");
+    const g=(a)=>{const q=a.split("|");return XA[+q[0]][+q[1]];};
+    c.querySelectorAll("[data-xl]").forEach(el=>el.oninput=()=>{g(el.dataset.xl)[0]=el.value;});
+    c.querySelectorAll("[data-xs]").forEach(el=>el.onchange=()=>{const x=g(el.dataset.xs);x[1]=el.value;const l=(x[0]||"").trim(),sv=(x[1]||"").trim();const sdx=l&&sv&&(catSd(l,"Lab",sv)||catSd(l,"Sab",sv)||catSd(l,"Fest",sv));if(sdx){const seg=sdx.t1||sdx.t2;if(seg&&!x[2]&&!x[3]){x[2]=seg[0];x[3]=seg[1];renderX();}}});
+    c.querySelectorAll("[data-xi]").forEach(el=>el.onchange=()=>{g(el.dataset.xi)[2]=el.value;});
+    c.querySelectorAll("[data-xf]").forEach(el=>el.onchange=()=>{g(el.dataset.xf)[3]=el.value;});
+    c.querySelectorAll("[data-xr]").forEach(el=>el.onclick=()=>{const q=el.dataset.xr.split("|");XA[+q[0]].splice(+q[1],1);renderX();});});}
+  document.getElementById("xadd1").onclick=()=>{XA[1].push(["","","",""]);renderX();};
+  document.getElementById("xadd2").onclick=()=>{XA[2].push(["","","",""]);renderX();};
+  renderX();
   document.getElementById("s_c").onclick=closeSheet;
   document.getElementById("s_ap").onclick=()=>{const L=val("s_l").trim(),T=val("s_t"),S=val("s_s").trim();const sd=state.serv[L+"|"+T+"|"+S]||catSd(L,T,S);if(!sd){toast("Guarda primero el servicio");return;}const trs=turnoTramos(sd,val("s_turno"));if(!trs.length){toast("Ese turno no tiene horario");return;}const tr=trs.map(t=>[L+"/"+S,t[0],t[1]]);if(apuntarDiaTramos(val("s_fecha"),tr,L+" · "+S)){closeSheet();render();toast("Apuntado en Días");}};
   if(document.getElementById("s_del"))document.getElementById("s_del").onclick=()=>{modal(`<h2 style="margin:4px 0 6px;font-size:17px">\u00bfBorrar este servicio?</h2><p class="hint" style="margin:0 0 10px">${String(key).replace(/\|/g," \u00b7 ")}. Podr\u00e1s recuperarlo desde <b>Copias autom\u00e1ticas</b> en Resumen.</p><div class="actions"><button class="btn ghost" id="sdel_no">Cancelar</button><button class="btn danger" id="sdel_si">S\u00ed, borrar</button></div>`);document.getElementById("sdel_no").onclick=cerrarModal;document.getElementById("sdel_si").onclick=()=>{snapBefore("Antes de borrar servicio "+String(key).replace(/\|/g," \u00b7 "));delMark("s",key);delete state.serv[key];save();cerrarModal();closeSheet();render();toast("Borrado");};};
   document.getElementById("s_sv").onclick=()=>{
     const L=val("s_l").trim(),T=val("s_t"),S=val("s_s").trim();if(!L||!S){toast("Pon línea y nº");return;}
     const i1=val("s_i1"),f1=val("s_f1"),i2=val("s_i2"),f2=val("s_f2");
-    const nsd={p:(i1&&i2)?1:0};if(i1&&f1)nsd.t1=[i1,f1];if(i2&&f2)nsd.t2=[i2,f2];
+    const nsd={p:(i1&&i2)?1:0};if(i1&&f1)nsd.t1=[i1,f1];if(i2&&f2)nsd.t2=[i2,f2];const cl=a=>a.filter(x=>x[2]&&x[3]).map(x=>[x[0].trim(),x[1].trim(),x[2],x[3]]);const q1=cl(XA[1]),q2=cl(XA[2]);if(q1.length&&nsd.t1)nsd.x1=q1;if(q2.length&&nsd.t2)nsd.x2=q2;if((XA[1].some(x=>x[2]&&x[3])&&!nsd.t1)||(XA[2].some(x=>x[2]&&x[3])&&!nsd.t2)){toast("Pon primero el horario del turno");return;}
     if(!nsd.t1&&!nsd.t2){toast("Pon al menos un turno");return;}
     if(key&&key!==L+"|"+T+"|"+S&&state.serv[key]){delMark("s",key);delete state.serv[key];}
     state.serv[L+"|"+T+"|"+S]=nsd;browseL=L;browseT=T;save();closeSheet();render();toast("Guardado");
