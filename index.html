@@ -1,6 +1,8 @@
 <!DOCTYPE html><html lang="es"><head>
 <meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover"/>
-<meta name="theme-color" content="#C62828"/><title>Calculadora EMB 2026</title>
+<meta name="theme-color" content="#C62828"/><title>Turnos + Calc EMB</title>
+<link rel="manifest" href="manifest.webmanifest"/><link rel="icon" type="image/png" href="icon-192.png"/><link rel="apple-touch-icon" href="apple-touch-icon.png"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/><meta name="mobile-web-app-capable" content="yes"/><meta name="apple-mobile-web-app-title" content="Turnos EMB"/><meta name="apple-mobile-web-app-status-bar-style" content="default"/>
 <style>
 :root{--emb:#C62828;--emb-dark:#8E1F1F;--emb-soft:#FBEAEA;--bg:#F4F2EE;--surface:#FFFFFF;--line:#E3E0D8;--ink:#26241F;--muted:#6E6A62;--hint:#9A958B;--noct:#3949AB;--noct-soft:#E8EAF6;--dieta:#2E7D32;--dieta-soft:#E7F1E3;--m:#BBD8F6;--m-tx:#0C447C;--m-sat:#E6F1FB;--m-sat-tx:#185FA5;--t:#FBCE82;--t-tx:#7A4708;--t-sat:#FBEEDA;--t-sat-tx:#9A6411;--d:#DCD9D0;--d-tx:#46453F;--v:#C6E0A0;--v-tx:#2A5410;--v2:#A6E4D1;--v2-tx:#0A5040;--fnr:#F6C6C6;--fnr-tx:#7A1F1F;--sun:#FCE7E7;--sun-tx:#A32D2D;}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}html,body{margin:0;padding:0;}
@@ -117,7 +119,7 @@ const STORE="emb_calc_2026_v4";
 const NIGHT=[[0,390],[1320,1830]];
 const MN=["enero","febrero","marzo","abril","mayo","junio","julio","agosto","septiembre","octubre","noviembre","diciembre"];
 const TIPOL={Lab:"Laborable",Sab:"Sábado",Fest:"Festivo"};
-const APP_VER="4.12";
+const APP_VER="4.13";
 let state=load(),tab="calendario",period=currentPeriod();
 
 /* ===== Calendario de turnos (fusion) ===== */
