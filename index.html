@@ -119,7 +119,7 @@ const STORE="emb_calc_2026_v4";
 const NIGHT=[[0,390],[1320,1830]];
 const MN=["enero","febrero","marzo","abril","mayo","junio","julio","agosto","septiembre","octubre","noviembre","diciembre"];
 const TIPOL={Lab:"Laborable",Sab:"Sábado",Fest:"Festivo"};
-const APP_VER="4.13";
+const APP_VER="4.14";
 let state=load(),tab="calendario",period=currentPeriod();
 
 /* ===== Calendario de turnos (fusion) ===== */
@@ -496,7 +496,7 @@ function periodFromDate(f){const d=new Date(f+"T12:00:00");let m=d.getMonth(),y=
 let _codCache={};
 function codesOfYear(y){const k=y+"|"+calType+"|"+calGrp;if(calType!=="ESP"&&_codCache[k])return _codCache[k];const _s=calYear;calYear=y;let r=null;try{r=calCodes();}catch(e){r=null;}calYear=_s;if(calType!=="ESP")_codCache[k]=r;return r;}
 function codeForFecha(f){if(!f||f.length<10)return null;const y=+f.slice(0,4),m=+f.slice(5,7)-1,d=+f.slice(8,10);const c=codesOfYear(y);return (c&&c[m])?c[m][d-1]||null:null;}
-const ESPD={FOD:{lbl:"FOD \u2014 fiesta por otro d\u00eda",cor:"var(--dieta)",bg:"var(--dieta-soft)",bd:"#BFD8B6",resta:true},ENF:{lbl:"Enfermo (baja)",cor:"var(--emb)",bg:"var(--emb-soft)",bd:"#EFCACA",resta:false,jornada:true},COM:{lbl:"Comit\u00e9",cor:"var(--emb)",bg:"var(--emb-soft)",bd:"#EFCACA",resta:false,jornada:true},HUE:{lbl:"Huelga (d\u00eda completo)",cor:"var(--emb)",bg:"var(--emb-soft)",bd:"#EFCACA",resta:true,huelga:true},MED:{lbl:"M\u00e9dico",cor:"var(--noct)",bg:"var(--noct-soft)",bd:"#C5CAE9",resta:false},FNR:{lbl:"FNR (fiesta en d\u00eda libre)",cor:"var(--hint)",bg:"var(--surface)",bd:"var(--line)",resta:false,libre:true}};
+const ESPD={FOD:{lbl:"FOD \u2014 fiesta por otro d\u00eda",cor:"var(--dieta)",bg:"var(--dieta-soft)",bd:"#BFD8B6",resta:true},ENF:{lbl:"Enfermo (baja)",cor:"var(--emb)",bg:"var(--emb-soft)",bd:"#EFCACA",resta:false,jornada:true},COM:{lbl:"Comit\u00e9",cor:"var(--emb)",bg:"var(--emb-soft)",bd:"#EFCACA",resta:false,jornada:true},HUE:{lbl:"Huelga (d\u00eda completo)",cor:"var(--emb)",bg:"var(--emb-soft)",bd:"#EFCACA",resta:false,huelga:true},MED:{lbl:"M\u00e9dico",cor:"var(--noct)",bg:"var(--noct-soft)",bd:"#C5CAE9",resta:false},FNR:{lbl:"FNR (fiesta en d\u00eda libre)",cor:"var(--hint)",bg:"var(--surface)",bd:"var(--line)",resta:false,libre:true}};
 function espDia(e){return (e&&(e.esp||(e.fod?"FOD":null)))||null;}
 function tipoForDate(f){const d=new Date(f+"T12:00:00").getDay();return d===6?"Sab":d===0?"Fest":"Lab";}
 function toMin(h){if(!h)return null;const[a,b]=h.split(":").map(Number);return a*60+b;}
@@ -649,7 +649,7 @@ function viewResumen(){const t=periodTotals();const tot=totalAcum();return backu
   <div class="bigrow"><span class="k">FOD (fiesta por otro día)</span><span class="v">${t.nfod}</span></div>
   <div class="bigrow"><span class="k">Días de baja (enfermo)</span><span class="v">${t.nenf}</span></div>
   <div class="bigrow"><span class="k">Días de comité</span><span class="v">${t.ncom}</span></div>
-  <div class="bigrow"><span class="k">Días de huelga<br><span class="hint" style="font-weight:600">descuentan una jornada</span></span><span class="v">${t.nhue}</span></div>
+  <div class="bigrow"><span class="k">Días de huelga<br><span class="hint" style="font-weight:600">0 horas, sin efecto en el saldo</span></span><span class="v">${t.nhue}</span></div>
   <div class="bigrow"><span class="k">Horas de paro<br><span class="hint" style="font-weight:600">descontadas del saldo</span></span><span class="v">${hhmm(t.hparo)}</span></div>
   <div class="bigrow"><span class="k">Días de médico</span><span class="v">${t.nmed}</span></div></div>
   <div class="card"><div class="bigrow"><span class="k">Desayunos</span><span class="v">${t.nd}</span></div>
@@ -663,7 +663,7 @@ function viewDias(){
   const list=state.registro.filter(e=>inPeriod(e.fecha)).sort((a,b)=>a.fecha<b.fecha?-1:1);
   if(!list.length)return periodHint()+`<div class="empty">No hay d\u00edas en este per\u00edodo.<br>Pulsa \u201c+ A\u00f1adir d\u00eda\u201d.</div>`;
   let h="<div class='card'>";
-  for(const e of list){const _k=espDia(e);if(_k){const dt2=new Date(e.fecha+"T12:00:00"),dn2=["DO","LU","MA","MI","JU","VI","SA"][dt2.getDay()];h+=`<div class="item" data-eid="${e.id}"><div class="d"><b>${dt2.getDate()}</b><small>${dn2}</small></div><div class="mid"><div class="t1" style="color:${ESPD[_k].cor}">${ESPD[_k].lbl}</div><div class="t2">${e.lab&&e.lab!==ESPD[_k].lbl?e.lab:"&nbsp;"}</div></div><div class="r"><b style="color:${ESPD[_k].resta?"var(--emb)":"var(--ink)"}">${ESPD[_k].resta?fmtSaldo(-jorStd()):(ESPD[_k].jornada?hhmm(jorStd()):"")}</b></div></div>`;continue;}const c=diaCalc(diaTramos(e));const d=e.dietas||{};
+  for(const e of list){const _k=espDia(e);if(_k){const dt2=new Date(e.fecha+"T12:00:00"),dn2=["DO","LU","MA","MI","JU","VI","SA"][dt2.getDay()];h+=`<div class="item" data-eid="${e.id}"><div class="d"><b>${dt2.getDate()}</b><small>${dn2}</small></div><div class="mid"><div class="t1" style="color:${ESPD[_k].cor}">${ESPD[_k].lbl}</div><div class="t2">${e.lab&&e.lab!==ESPD[_k].lbl?e.lab:"&nbsp;"}</div></div><div class="r"><b style="color:${ESPD[_k].resta?"var(--emb)":"var(--ink)"}">${ESPD[_k].resta?fmtSaldo(-jorStd()):(ESPD[_k].jornada?hhmm(jorStd()):(ESPD[_k].huelga?hhmm(0):""))}</b></div></div>`;continue;}const c=diaCalc(diaTramos(e));const d=e.dietas||{};
     const dt=new Date(e.fecha+"T12:00:00"),dn=["DO","LU","MA","MI","JU","VI","SA"][dt.getDay()];
     let chips="";if(c.noct>0.01)chips+="<span class='chip n'>noct "+hhmm(c.noct)+"</span>";if(e.paro>0)chips+="<span class='chip n' style='background:var(--emb-soft);color:var(--emb)'>paro \u2212"+fmtHM(+e.paro)+"</span>";
     if(d.desayuno)chips+="<span class='chip di'>Des</span>";if(d.comida)chips+="<span class='chip di'>Com</span>";if(d.cena)chips+="<span class='chip di'>Cen</span>";
@@ -767,7 +767,7 @@ function renderParo(){const w=document.getElementById("paro_wrap");if(!w)return;
 function renderBloques(){
   renderParo();
   const cont=document.getElementById("bloques");
-  const _ed=espDia(E);if(_ed){const z=ESPD[_ed];cont.innerHTML=`<div class="blq" style="background:${z.bg};border-color:${z.bd}"><div style="font-size:14px;font-weight:800;color:${z.cor}">${z.lbl}</div><div class="hint" style="margin:4px 0 0">${z.huelga?("Huelga de d\u00eda completo: no se trabaja, sin pluses, nocturnidad ni dietas. Descuenta <b>"+hhmm(jorStd())+"</b> del saldo de horas."):z.resta?("No se trabaja. Descuenta <b>"+hhmm(jorStd())+"</b> del saldo acumulado."):z.jornada?("Cuenta como d\u00eda trabajado (sin pluses, nocturnidad ni dietas) y suma <b>"+hhmm(jorStd())+"</b> de jornada (saldo neutro)."):z.libre?"D\u00eda libre (cae en fiesta). No se trabaja, no suma ni resta. Solo para distinguirlo.":"No suma ni resta. Solo queda registrado."}</div></div>`;return;}
+  const _ed=espDia(E);if(_ed){const z=ESPD[_ed];cont.innerHTML=`<div class="blq" style="background:${z.bg};border-color:${z.bd}"><div style="font-size:14px;font-weight:800;color:${z.cor}">${z.lbl}</div><div class="hint" style="margin:4px 0 0">${z.huelga?("Huelga de d\u00eda completo: no se trabaja, sin pluses, nocturnidad ni dietas. Ese d\u00eda son 0 horas y no cambia el saldo: el descuento es solo en dinero."):z.resta?("No se trabaja. Descuenta <b>"+hhmm(jorStd())+"</b> del saldo acumulado."):z.jornada?("Cuenta como d\u00eda trabajado (sin pluses, nocturnidad ni dietas) y suma <b>"+hhmm(jorStd())+"</b> de jornada (saldo neutro)."):z.libre?"D\u00eda libre (cae en fiesta). No se trabaja, no suma ni resta. Solo para distinguirlo.":"No suma ni resta. Solo queda registrado."}</div></div>`;return;}
   cont.innerHTML=E.bloques.map((b,i)=>{
     const rm=E.bloques.length>1?`<button class="rm" data-rm="${i}">&times;</button>`:"";
     const tramos=bloqueTramos(b,E.tipo).map(x=>x[0]+"–"+x[1]).join("  +  ")||"—";
